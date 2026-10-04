@@ -106,8 +106,7 @@ class ManageStaff(QWidget):
         )
 
         if confirm == QMessageBox.Yes:
-            query = QSqlQuery()
-            ok = query.exec_(f"DELETE FROM INSTRUCTORS WHERE Instructor_Id = {record_id}")
+            ok = self.dp.run("DELETE FROM INSTRUCTORS WHERE Instructor_Id = ?", (record_id,))
 
             if not ok:
                 QMessageBox.warning(

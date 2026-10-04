@@ -42,8 +42,10 @@ class EditMaj(QDialog):
         
     def load_course_data(self):
       
-        sql = f"SELECT Major_Name ,Dept_Id FROM MAJORS WHERE Major_Id = {self.id}"
-        query = self.dp._exec(sql)
+        query = self.dp.query(
+            "SELECT Major_Name, Dept_Id FROM MAJORS WHERE Major_Id = ?",
+            (self.id,),
+        )
         if query.next():
           self.Nametxt.setText(query.value(0))
           self.combo.setCurrentText(str(query.value(1)))
@@ -63,11 +65,10 @@ class EditMaj(QDialog):
         try:
               
 
-              sql = f"""
-              UPDATE MAJORS SET Major_Name = '{name}', Dept_Id='{id}'WHERE Major_Id = {self.id}; 
-              """
-
-              self.dp._exec(sql)
+              self.dp.query(
+                  "UPDATE MAJORS SET Major_Name = ?, Dept_Id = ? WHERE Major_Id = ?",
+                  (name, id, self.id),
+              )
 
               self.model.select() 
 

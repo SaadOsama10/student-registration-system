@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
 from deb_con import DatabaseConnect
+from security import hash_password
 
 from PyQt5.QtWidgets import (QWidget, QApplication, QVBoxLayout, QLabel, QLineEdit, 
                              QTableView, QPushButton, QFormLayout, QFrame, QMessageBox,QHBoxLayout,QHeaderView,QComboBox)
@@ -25,6 +26,8 @@ class ManageUsers(QWidget):
 
         self.view = QTableView()
         self.view.setModel(self.model) 
+        # Never show (or allow in-place edits of) password hashes
+        self.view.setColumnHidden(self.model.fieldIndex("Password"), True)
         self.view.setShowGrid(True)   # إظهار الخطوط بين الخلايا
         self.view.setGridStyle(Qt.DashLine)  # خط متصل
         self.view.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
@@ -179,12 +182,10 @@ class ManageUsers(QWidget):
               password = self.txt_p.text()
               role = self.combo_role.currentText()
 
-              sql = f"""
-              INSERT INTO USERS (Username, Password, Role)
-              VALUES ('{username}', '{password}', '{role}')
-              """
-
-              self.dp._exec(sql)
+              self.dp.query(
+                  "INSERT INTO USERS (Username, Password, Role) VALUES (?, ?, ?)",
+                  (username, hash_password(password), role),
+              )
 
               self.model.select()  # Refresh table
 
@@ -206,8 +207,7 @@ class ManageUsers(QWidget):
         )
 
         if confirm == QMessageBox.Yes:
-            query = QSqlQuery()
-            ok = query.exec_(f"DELETE FROM USERS WHERE User_Id = {record_id}")
+            ok = self.dp.run("DELETE FROM USERS WHERE User_Id = ?", (record_id,))
 
             if not ok:
                 QMessageBox.warning(

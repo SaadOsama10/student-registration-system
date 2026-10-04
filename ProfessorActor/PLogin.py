@@ -64,23 +64,17 @@ class MainWindow(QMainWindow):
 
 
         try:
-            query = self.dp._exec(f"""
-                SELECT User_Id
-                FROM USERS
-                WHERE Username = '{username}' AND Password = '{password}' AND role = 'Instructor'
-            """)
+            user_id = self.dp.authenticate(username, password, "Instructor")
 
-            if not query.next():
+            if user_id is None:
                 QMessageBox.warning(self, "Login Failed", 
                                   "Invalid username, password, or role.\nPlease try again.")
                 return
             else:
-                user_id = query.value(0)
-                query = self.dp._exec(f"""
-                SELECT Instructor_Id
-                FROM INSTRUCTORS
-                WHERE User_Id = '{user_id}' 
-            """)
+                query = self.dp.query(
+                    "SELECT Instructor_Id FROM INSTRUCTORS WHERE User_Id = ?",
+                    (user_id,),
+                )
                 query.next()
                 instructor_id = query.value(0) 
                 QMessageBox.information(self, "Success","Login successful.")

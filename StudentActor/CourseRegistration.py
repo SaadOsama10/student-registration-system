@@ -68,7 +68,8 @@ WHERE S.Sem_Id = (
         self.view2.setGridStyle(Qt.DashLine)
         self.view2.setSortingEnabled(True)
         self.view2.horizontalHeader().setStretchLastSection(True)
-        self.model2.setFilter(f"Student_Id = '{self.stuID}'")
+        # setFilter() cannot bind values; int() guarantees a plain numeric id
+        self.model2.setFilter(f"Student_Id = {int(self.stuID)}")
         self.view2.doubleClicked.connect(self.delete_row)
 
 
@@ -137,46 +138,42 @@ WHERE S.Sem_Id = (
       try:
           
 
-          query = self.dp._exec(f"""
+          query = self.dp.query("""
              SELECT S.Section_Id
 FROM SECTIONS S
 JOIN COURSES C ON S.Course_Id = C.Course_Id
 JOIN PAYMENTS P 
     ON S.Sem_Id = P.Sem_Id
-    AND P.Student_Id = '{self.stuID}'
+    AND P.Student_Id = ?
     AND P.Status = 'Paid'
-WHERE C.Course_Code = '{code}'
+WHERE C.Course_Code = ?
 AND S.Sem_Id = (
     SELECT Sem_Id FROM SEMESTERS
     ORDER BY Start_Date DESC
     LIMIT 1
 )
-
-
-          """)
+          """, (self.stuID, code))
           if not query.next():
             QMessageBox.warning(self, "Error", "Section not found!\n You haven't pain your course!\n Contact with the admins")
             return    
           section_id = query.value(0)
           cdate = QDate.currentDate().toString("yyyy-MM-dd")
           
-          check = self.dp._exec(f"""
-             SELECT Reg_Id FROM STUDENTS_REGISTRATIONS
-WHERE Student_Id = '{self.stuID}'
-AND Section_Id = '{section_id}'
-
-          """)
+          check = self.dp.query(
+              "SELECT Reg_Id FROM STUDENTS_REGISTRATIONS WHERE Student_Id = ? AND Section_Id = ?",
+              (self.stuID, section_id),
+          )
 
           if check.next():
               QMessageBox.warning(self, "Warning", "You already registered this course!")
               return
             
             
-          insert_result = self.dp._exec(f"""
-              INSERT INTO STUDENTS_REGISTRATIONS
-              (Student_Id, Section_Id, Status, Request_Date) 
-              VALUES ('{self.stuID}', '{section_id}', 'Pending', '{cdate}')
-          """)
+          insert_result = self.dp.run(
+              "INSERT INTO STUDENTS_REGISTRATIONS (Student_Id, Section_Id, Status, Request_Date) "
+              "VALUES (?, ?, 'Pending', ?)",
+              (self.stuID, section_id, cdate),
+          )
           
           if insert_result:
               QMessageBox.information(
@@ -208,7 +205,11 @@ AND Section_Id = '{section_id}'
 
         if confirm == QMessageBox.Yes:
             
-            self.dp._exec(f"DELETE FROM STUDENTS_REGISTRATIONS WHERE Reg_Id = {record_id}")
+            # Students can only withdraw their own registrations
+            self.dp.query(
+                "DELETE FROM STUDENTS_REGISTRATIONS WHERE Reg_Id = ? AND Student_Id = ?",
+                (record_id, self.stuID),
+            )
             
 
             self.model2.select()  

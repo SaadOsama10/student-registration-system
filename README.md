@@ -102,7 +102,7 @@ python Rule.py
 
 Run it from the project root: the database (`student_management.db`) and the `assets/` icons are resolved relative to the working directory.
 
-On first launch the app creates the database and a default admin account, **`admin` / `1234`**. Sign in as Admin to add departments, majors, instructors, students, courses, semesters, classrooms and sections. Students can register for courses once a *Paid* payment exists for the current semester.
+On first launch the app creates the database and a default admin account, **`admin` / `1234`** (stored hashed; see Known Limitations). Sign in as Admin to add departments, majors, instructors, students, courses, semesters, classrooms and sections. Students can register for courses once a *Paid* payment exists for the current semester.
 
 ## Project Structure
 
@@ -110,6 +110,7 @@ On first launch the app creates the database and a default admin account, **`adm
 .
 ├── Rule.py                       # Launcher: role selection (Admin / Staff / Student)
 ├── deb_con.py                    # SQLite connection, schema creation, default admin
+├── security.py                   # PBKDF2 password hashing and verification
 ├── AdminActor/                   # Admin login, dashboard and CRUD screens
 │   ├── Course/ Department/ Major/ Staff/ Student/
 │   ├── Semester/                 # Semesters, classrooms, sections, payments
@@ -123,11 +124,22 @@ On first launch the app creates the database and a default admin account, **`adm
 └── requirements.txt
 ```
 
+## Improvements
+
+Changes made after the original course project:
+
+- **SQL injection fixed.** Every query that used f-string SQL (logins, admin add/edit/delete screens, course registration, profile, transcript, instructor schedule) now uses parameterized queries: `QSqlQuery.prepare()` + `addBindValue()`, mostly through a shared `DatabaseConnect.query()` helper. The one `QSqlTableModel.setFilter()` call, which cannot take bound values, uses an `int()`-cast student id.
+- **Hashed passwords.** Passwords are hashed with PBKDF2-HMAC-SHA256 (600,000 iterations, random 16-byte salt; standard library only, see `security.py`). All three logins go through `DatabaseConnect.authenticate()`, which compares in constant time. Plain-text passwords in databases created by older versions still work once and are upgraded to a hash on that login. New users are stored hashed, and the Manage Users table no longer shows the password column. An unused admin-login method that opened the dashboard without checking a password was removed.
+- **Real transcript header.** The header GPA is now calculated from the student's grades (the same value as A.G.N.O. below the table), not a fixed "3.5". **Student State** shows *Active* when the current semester's fee is paid and *Inactive* otherwise. The "Sucess" typo is fixed.
+- **Admin delete buttons work.** The nine admin delete actions used Qt's *default* database connection, which the app never opens, so deletes silently failed. They now run on the app's connection; deletes that would break foreign keys (e.g. a course that still has sections) are still refused with a message.
+- **Withdrawals limited to the student's own registrations.** The delete query now also checks `Student_Id`.
+
+These changes were verified off-screen with fictional test data: 35 automated checks (logins, injection attempts, legacy-password upgrade, user creation, deletes, registration rules, transcript values) and all 13 screens open with no errors.
+
 ## Known Limitations
 
-- **Plain-text passwords.** `USERS.Password` is stored and compared as plain text, with no hashing, and a default `admin` / `1234` account is created automatically.
-- **SQL built with string formatting.** The login screens and several queries insert user input into SQL with f-strings rather than bound parameters, so they are open to SQL injection.
-- **Commented-out GPA calculator.** `StudentAcademicCalculator.py` (term/total credits, term GPA, total GPA) is entirely commented out and unused. The dashboard and the transcript's **A.G.N.O.** use a separate `calculate_gpa()` in `Transcript.py` instead.
-- **Hard-coded transcript header.** In the transcript header, **GPA is a fixed "3.5"**, and Student State, Program Type and Preparatory Success Status are fixed text, so the header GPA can differ from the real A.G.N.O. shown below the course table (e.g. 3.5 vs 3.34 in the screenshot).
+- **Default admin account.** On every launch the app makes sure an `admin` account exists, re-creating it as `admin` / `1234` (stored hashed) if it is missing. There is no change-password screen, so this default login cannot be retired from inside the app.
+- **Commented-out GPA calculator.** `StudentAcademicCalculator.py` (term/total credits, term GPA, total GPA) is entirely commented out and unused. GPA comes from `calculate_gpa()` in `Transcript.py` instead.
 - **Unused tables.** `TRANSCRIPT` and `TRANSCRIPT_DETAILS` are created but never written by the current code.
+- **Two fixed transcript fields.** The schema has no program-type or preparatory-school data, so *Program Type* ("Bachelor's") and *Preparatory Success Status* ("Success") are still fixed text.
 - **Desktop-only, local database.** Single-user SQLite file, with no network or multi-user access.

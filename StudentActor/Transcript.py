@@ -4,7 +4,7 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtGui import QPixmap, QFont,QIcon
 from PyQt5.QtCore import Qt
-from PyQt5.QtSql import QSqlDatabase, QSqlTableModel,QSqlQueryModel
+from PyQt5.QtSql import QSqlDatabase, QSqlTableModel, QSqlQueryModel, QSqlQuery
 
 
 import sys
@@ -48,6 +48,7 @@ class ManageTranscript(QWidget):
         self.database()
         self.gpa=self.calculate_gpa()
         self.stu_class=self.get_student_class(self.cridets)
+        self.student_state=self.get_student_state()
         
   
 
@@ -119,10 +120,11 @@ class ManageTranscript(QWidget):
         right_info = QVBoxLayout()
         right_info.setSpacing(2)
 
-        right_info.addLayout(self.make_info_row("GPA:", "3.5"))
-        right_info.addLayout(self.make_info_row("Student State:", "Active"))
+        right_info.addLayout(self.make_info_row("GPA:", f"{self.gpa:.2f}"))
+        right_info.addLayout(self.make_info_row("Student State:", self.student_state))
+        # The schema has no program-type or preparatory-school data, so these stay fixed
         right_info.addLayout(self.make_info_row("Program Type:", "Bachelor's"))
-        right_info.addLayout(self.make_info_row("Preparatory Success Status:", "Sucess"))
+        right_info.addLayout(self.make_info_row("Preparatory Success Status:", "Success"))
 
         photo = QLabel()
         pp = QPixmap(f"{self.path}").scaled(
@@ -138,7 +140,7 @@ class ManageTranscript(QWidget):
         
         self.model = QSqlQueryModel()
 
-        sql = f"""
+        sql = """
                 SELECT
                     
                     C.Course_Code,
@@ -153,12 +155,16 @@ class ManageTranscript(QWidget):
                 JOIN SEMESTERS sem ON sem.Sem_Id = S.Sem_Id
                 JOIN STUDENTS_REGISTRATIONS R ON R.Section_Id = S.Section_Id
                 LEFT JOIN GRADES G ON R.Reg_Id = G.Reg_Id
-                WHERE R.Student_Id= '{self.stuID}' And G.Grade_Letter IS NOT NULL
+                WHERE R.Student_Id = ? And G.Grade_Letter IS NOT NULL
                 ORDER BY S.Sem_Id ASC
                 """
       
             
-        self.model.setQuery(sql, QSqlDatabase.database("main_connection"))
+        course_query = QSqlQuery(QSqlDatabase.database("main_connection"))
+        course_query.prepare(sql)
+        course_query.addBindValue(self.stuID)
+        course_query.exec_()
+        self.model.setQuery(course_query)
         if not self.model.query().isActive():
             error = self.model.lastError().text()
             QMessageBox.critical(self, "Query Error", f"Failed to execute query:\n{error}")
@@ -209,11 +215,11 @@ class ManageTranscript(QWidget):
 
         return row
     def database(self):
-        sql = f"""SELECT Student_Name,Student_Number,Student_Email, TC_Kimlik, Major_Id, Advisor_Id 
-                  FROM STUDENTS 
-                  WHERE Student_Id = '{self.stuID}'"""
-        
-        query = self.dp._exec(sql)
+        query = self.dp.query(
+            "SELECT Student_Name, Student_Number, Student_Email, TC_Kimlik, Major_Id, Advisor_Id "
+            "FROM STUDENTS WHERE Student_Id = ?",
+            (self.stuID,),
+        )
         
         if query.next():
             self.name = query.value(0)
@@ -227,35 +233,26 @@ class ManageTranscript(QWidget):
             return
         
         # Fix: SELECT instead of SELECTE
-        sql = f"""SELECT Major_Name
-                  FROM MAJORS 
-                  WHERE Major_Id = '{self.majorid}'"""
-        
-        query = self.dp._exec(sql)
+        query = self.dp.query("SELECT Major_Name FROM MAJORS WHERE Major_Id = ?", (self.majorid,))
         if query.next():
             self.major_name = query.value(0)
         else:
             self.major_name = "Unknown"
         # Fix: SELECT instead of SELECTE
-        sql = f"""SELECT COALESCE(SUM(C.Course_Credits), 0)
-                  FROM COURSES C
-                  JOIN SECTIONS S
-                  ON   S.Course_Id = C.Course_Id
-                  JOIN STUDENTS_REGISTRATIONS R
-                  ON   R.Section_Id=S.Section_Id
-                  WHERE Student_Id = '{self.stuID}'
-                  AND Status = 'Approved'
-                  """
-        
-        query = self.dp._exec(sql)
+        query = self.dp.query(
+            "SELECT COALESCE(SUM(C.Course_Credits), 0) FROM COURSES C "
+            "JOIN SECTIONS S ON S.Course_Id = C.Course_Id "
+            "JOIN STUDENTS_REGISTRATIONS R ON R.Section_Id = S.Section_Id "
+            "WHERE R.Student_Id = ? AND R.Status = 'Approved'",
+            (self.stuID,),
+        )
         query.next()
         self.cridets = int(query.value(0))
         
-        sql = f"""SELECT Instructor_Name,Instructor_Email
-                  FROM INSTRUCTORS 
-                  WHERE Instructor_Id = '{self.advisorid}'"""
-        
-        query = self.dp._exec(sql)
+        query = self.dp.query(
+            "SELECT Instructor_Name, Instructor_Email FROM INSTRUCTORS WHERE Instructor_Id = ?",
+            (self.advisorid,),
+        )
         if query.next():
             self.adv_name = query.value(0)
             self.adv_email = query.value(1)
@@ -274,6 +271,14 @@ class ManageTranscript(QWidget):
           return "3. class"
       else:
           return "4. class"
+    def get_student_state(self):
+      """Active when the fee for the current (latest) semester is paid."""
+      query = self.dp.query(
+          "SELECT 1 FROM PAYMENTS WHERE Student_Id = ? AND Status = 'Paid' "
+          "AND Sem_Id = (SELECT Sem_Id FROM SEMESTERS ORDER BY Start_Date DESC LIMIT 1)",
+          (self.stuID,),
+      )
+      return "Active" if query.next() else "Inactive"
     def calculate_gpa(self):
       grade_points = {
           "AA": 4.0,
@@ -287,17 +292,14 @@ class ManageTranscript(QWidget):
           "FF": 0.0
       }
 
-      sql = f"""
-      SELECT C.Course_Credits, G.Grade_Letter
-      FROM COURSES C
-      JOIN SECTIONS S ON S.Course_Id = C.Course_Id
-      JOIN STUDENTS_REGISTRATIONS R ON R.Section_Id = S.Section_Id
-      LEFT JOIN GRADES G ON R.Reg_Id = G.Reg_Id
-      WHERE R.Student_Id = '{self.stuID}'
-      AND R.Status = 'Approved'
-      """
-
-      query = self.dp._exec(sql)
+      query = self.dp.query(
+          "SELECT C.Course_Credits, G.Grade_Letter FROM COURSES C "
+          "JOIN SECTIONS S ON S.Course_Id = C.Course_Id "
+          "JOIN STUDENTS_REGISTRATIONS R ON R.Section_Id = S.Section_Id "
+          "LEFT JOIN GRADES G ON R.Reg_Id = G.Reg_Id "
+          "WHERE R.Student_Id = ? AND R.Status = 'Approved'",
+          (self.stuID,),
+      )
 
       total_points = 0.0
       total_credits = 0
@@ -315,8 +317,7 @@ class ManageTranscript(QWidget):
 
       return round(total_points / total_credits, 2)
     def getimage (self):
-      sql =f"""SELECT Photo_Path from Profile WHERE Student_Id = {self.stuID}""" 
-      query = self.dp._exec(sql)
+      query = self.dp.query("SELECT Photo_Path FROM PROFILE WHERE Student_Id = ?", (self.stuID,))
       if query.next() :
         return str(query.value(0))
       

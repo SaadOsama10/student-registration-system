@@ -204,12 +204,10 @@ class ManageSection(QWidget):
 
             
             # Insert new classroom
-            sql = f"""
-            INSERT INTO SECTIONS (Room_Id, Course_Id, Instructor_Id, Sem_Id,Time)
-            VALUES ('{rid}', '{cid}', '{iid}', '{semester}', '{time}')
-            """
-
-            self.dp._exec(sql)
+            self.dp.query(
+                "INSERT INTO SECTIONS (Room_Id, Course_Id, Instructor_Id, Sem_Id, Time) VALUES (?, ?, ?, ?, ?)",
+                (rid, cid, iid, semester, time),
+            )
             self.model.select()  # Refresh table
             QMessageBox.information(self, "Success", " Section registered successfully!")
             self.clear_form()
@@ -229,8 +227,7 @@ class ManageSection(QWidget):
         )
 
         if confirm == QMessageBox.Yes:
-            query = QSqlQuery()
-            ok = query.exec_(f"DELETE FROM SECTIONS WHERE Section_Id = {record_id}")
+            ok = self.dp.run("DELETE FROM SECTIONS WHERE Section_Id = ?", (record_id,))
 
             if not ok:
                 QMessageBox.warning(

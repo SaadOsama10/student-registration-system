@@ -109,8 +109,7 @@ class ManageDep(QWidget):
         )
 
         if confirm == QMessageBox.Yes:
-            query = QSqlQuery()
-            ok = query.exec_(f"DELETE FROM DEPARTMENTS WHERE Department_Id = {record_id}")
+            ok = self.dp.run("DELETE FROM DEPARTMENTS WHERE Department_Id = ?", (record_id,))
 
             if not ok:
                 QMessageBox.warning(

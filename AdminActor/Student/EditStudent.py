@@ -69,11 +69,11 @@ class EditStudents(QDialog):
         self.load_student_data()
 
     def load_student_data(self):
-        sql = f"""
-        SELECT Student_Name, Student_Number, Student_Email, TC_Kimlik, User_Id, Major_Id, Advisor_Id
-        FROM STUDENTS WHERE Student_Id = {self.id}
-        """
-        query = self.dp._exec(sql)
+        query = self.dp.query(
+            "SELECT Student_Name, Student_Number, Student_Email, TC_Kimlik, User_Id, Major_Id, Advisor_Id "
+            "FROM STUDENTS WHERE Student_Id = ?",
+            (self.id,),
+        )
 
         if query.next():
             self.Nametxt.setText(query.value(0))
@@ -111,19 +111,11 @@ class EditStudents(QDialog):
             return
 
         try:
-            sql = f"""
-            UPDATE STUDENTS SET
-                Student_Name = '{name}',
-                Student_Number = '{number}',
-                Student_Email = '{email}',
-                TC_Kimlik = '{tc}',
-                User_Id = '{user_id}',
-                Major_Id = '{major_id}',
-                Advisor_Id = '{advisor_id}'
-            WHERE Student_Id = {self.id}
-            """
-
-            self.dp._exec(sql)
+            self.dp.query(
+                "UPDATE STUDENTS SET Student_Name = ?, Student_Number = ?, Student_Email = ?, TC_Kimlik = ?, "
+                "User_Id = ?, Major_Id = ?, Advisor_Id = ? WHERE Student_Id = ?",
+                (name, number, email, tc, user_id, major_id, advisor_id, self.id),
+            )
             self.model.select()
             QMessageBox.information(self, "Success", "Student updated successfully!")
             self.close()

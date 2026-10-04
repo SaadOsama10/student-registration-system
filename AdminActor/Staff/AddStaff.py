@@ -55,12 +55,11 @@ class AddStaff(QDialog):
             did = self.Depcombo.currentData()
             uid = self.Usercombo.currentData()
 
-            sql = f"""
-            INSERT INTO INSTRUCTORS (Instructor_Name, Instructor_Email, Department_Id, User_Id)
-            VALUES ('{name}', '{email}', '{did}', '{uid}')
-            """
-
-            self.dp._exec(sql)
+            self.dp.query(
+                "INSERT INTO INSTRUCTORS (Instructor_Name, Instructor_Email, Department_Id, User_Id) "
+                "VALUES (?, ?, ?, ?)",
+                (name, email, did, uid),
+            )
             self.model.select()
             QMessageBox.information(self, "Success", "New Instructor registered successfully!")
             self.close()

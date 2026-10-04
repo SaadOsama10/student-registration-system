@@ -48,12 +48,10 @@ class AddMaj(QDialog):
               id = self.combo.currentData()
               
 
-              sql = f"""
-              INSERT INTO MAJORS (Major_Name, Dept_Id)
-              VALUES ('{name}', '{id}')
-              """
-
-              self.dp._exec(sql)
+              self.dp.query(
+                  "INSERT INTO MAJORS (Major_Name, Dept_Id) VALUES (?, ?)",
+                  (name, id),
+              )
 
               self.model.select() 
 

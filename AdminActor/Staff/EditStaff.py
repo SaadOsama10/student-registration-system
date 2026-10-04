@@ -51,11 +51,10 @@ class EditStaff(QDialog):
         
 
     def load_instructor_data(self):
-        sql = f"""
-        SELECT Instructor_Name, Instructor_Email
-        FROM INSTRUCTORS WHERE Instructor_Id = {self.id}
-        """
-        query = self.dp._exec(sql)
+        query = self.dp.query(
+            "SELECT Instructor_Name, Instructor_Email FROM INSTRUCTORS WHERE Instructor_Id = ?",
+            (self.id,),
+        )
 
         if query.next():
             self.Nametxt.setText(query.value(0))
@@ -74,16 +73,11 @@ class EditStaff(QDialog):
             return
 
         try:
-            sql = f"""
-            UPDATE INSTRUCTORS SET
-                Instructor_Name = '{name}',
-                Instructor_Email = '{email}',
-                Department_Id = '{did}',
-                User_Id = '{uid}'
-            WHERE Instructor_Id = {self.id}
-            """
-
-            self.dp._exec(sql)
+            self.dp.query(
+                "UPDATE INSTRUCTORS SET Instructor_Name = ?, Instructor_Email = ?, Department_Id = ?, User_Id = ? "
+                "WHERE Instructor_Id = ?",
+                (name, email, did, uid, self.id),
+            )
             self.model.select()
             QMessageBox.information(self, "Success", "Instructor updated successfully!")
             self.close()

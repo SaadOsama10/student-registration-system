@@ -205,11 +205,11 @@ class StudentMain(QWidget):
         
     def database(self):
         # Fix: SELECT instead of SELECTE
-        sql = f"""SELECT Student_Name,Student_Number,Student_Email, TC_Kimlik, Major_Id, Advisor_Id 
-                  FROM STUDENTS 
-                  WHERE Student_Id = '{self.stuID}'"""
-        
-        query = self.dp._exec(sql)
+        query = self.dp.query(
+            "SELECT Student_Name, Student_Number, Student_Email, TC_Kimlik, Major_Id, Advisor_Id "
+            "FROM STUDENTS WHERE Student_Id = ?",
+            (self.stuID,),
+        )
         
         # You need to move to the first result
         if query.next():
@@ -224,22 +224,17 @@ class StudentMain(QWidget):
             return
         
         # Fix: SELECT instead of SELECTE
-        sql = f"""SELECT Major_Name
-                  FROM MAJORS 
-                  WHERE Major_Id = '{self.majorid}'"""
-        
-        query = self.dp._exec(sql)
+        query = self.dp.query("SELECT Major_Name FROM MAJORS WHERE Major_Id = ?", (self.majorid,))
         if query.next():
             self.major_name = query.value(0)
         else:
             self.major_name = "Unknown"
         
         # Fix: SELECT instead of SELECTE
-        sql = f"""SELECT Instructor_Name,Instructor_Email
-                  FROM INSTRUCTORS 
-                  WHERE Instructor_Id = '{self.advisorid}'"""
-        
-        query = self.dp._exec(sql)
+        query = self.dp.query(
+            "SELECT Instructor_Name, Instructor_Email FROM INSTRUCTORS WHERE Instructor_Id = ?",
+            (self.advisorid,),
+        )
         if query.next():
             self.adv_name = query.value(0)
             self.adv_email = query.value(1)
@@ -249,8 +244,7 @@ class StudentMain(QWidget):
             
 
     def getimage (self):
-      sql =f"""SELECT Photo_Path from Profile WHERE Student_Id = {self.stuID}""" 
-      query = self.dp._exec(sql)
+      query = self.dp.query("SELECT Photo_Path FROM PROFILE WHERE Student_Id = ?", (self.stuID,))
       if query.next() :
         return str(query.value(0))
       

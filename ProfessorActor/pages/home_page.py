@@ -58,24 +58,27 @@ class HomePage(QWidget):
         # Schedule table
         self.model = QSqlQueryModel()
 
-        sql = f"""
+        sql = """
                 SELECT
-                    
+
                     R.Room_Number,
                     R.Building,
                     C.Course_Code,
                     C.Course_Name,
-                    S.Time                           
+                    S.Time
                 FROM SECTIONS S
                 JOIN COURSES C ON S.Course_Id = C.Course_Id
                 JOIN CLASSROOMS R ON S.Room_Id = R.Room_Id
-                WHERE S.Instructor_Id= '{self.prof_id}' 
+                WHERE S.Instructor_Id = ?
                 And S.Sem_Id = (SELECT Sem_Id FROM SEMESTERS ORDER BY Start_Date DESC LIMIT 1
 )
                 """
-      
-            
-        self.model.setQuery(sql, QSqlDatabase.database("main_connection"))
+
+        schedule_query = QSqlQuery(QSqlDatabase.database("main_connection"))
+        schedule_query.prepare(sql)
+        schedule_query.addBindValue(self.prof_id)
+        schedule_query.exec_()
+        self.model.setQuery(schedule_query)
         if not self.model.query().isActive():
             error = self.model.lastError().text()
             QMessageBox.critical(self, "Query Error", f"Failed to execute query:\n{error}")

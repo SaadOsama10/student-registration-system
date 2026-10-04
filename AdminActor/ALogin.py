@@ -56,19 +56,13 @@ class MainWindow(QMainWindow) :
 
 
         try:
-            query = self.dp._exec(f"""
-                SELECT User_Id
-                FROM USERS
-                WHERE Username = '{username}' AND Password = '{password}' AND role = 'Admin'
-            """)
+            user_id = self.dp.authenticate(username, password, "Admin")
 
-            if not query.next():
+            if user_id is None:
                 QMessageBox.warning(self, "Login Failed", 
                                   "Invalid username, password, or role.\nPlease try again.")
                 return
             else:
-                user_id = query.value(0)
-                
                 QMessageBox.information(self, "Success","Login successful.")
                 self.dashboard_window = Dashboard(self.dp)
                 self.dashboard_window.show()
@@ -94,8 +88,6 @@ class MainWindow(QMainWindow) :
   
      
 
-  def login_btn_clicked(self):
-       self.open_dashboard()
        
 
 

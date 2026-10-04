@@ -110,8 +110,7 @@ class ManageMaj(QWidget):
         )
 
         if confirm == QMessageBox.Yes:
-            query = QSqlQuery()
-            ok = query.exec_(f"DELETE FROM MAJORS WHERE Major_Id = {record_id}")
+            ok = self.dp.run("DELETE FROM MAJORS WHERE Major_Id = ?", (record_id,))
 
             if not ok:
                 QMessageBox.warning(

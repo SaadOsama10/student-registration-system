@@ -40,11 +40,10 @@ class EditDep(QDialog):
         self.load_department_data()
 
     def load_department_data(self):
-        sql = f"""
-        SELECT Department_Name, Head_Instructor_Id
-        FROM DEPARTMENTS WHERE Department_Id = {self.id}
-        """
-        query = self.dp._exec(sql)
+        query = self.dp.query(
+            "SELECT Department_Name, Head_Instructor_Id FROM DEPARTMENTS WHERE Department_Id = ?",
+            (self.id,),
+        )
 
         if query.next():
             self.Nametxt.setText(query.value(0))
@@ -65,20 +64,12 @@ class EditDep(QDialog):
             QMessageBox.warning(self, "Warning", "Please fill all fields")
             return
 
-        if head is None:
-            head_value = "NULL"
-        else:
-            head_value = head
 
         try:
-            sql = f"""
-            UPDATE DEPARTMENTS SET
-                Department_Name = '{name}',
-                Head_Instructor_Id = {head_value}
-            WHERE Department_Id = {self.id}
-            """
-
-            self.dp._exec(sql)
+            self.dp.query(
+                "UPDATE DEPARTMENTS SET Department_Name = ?, Head_Instructor_Id = ? WHERE Department_Id = ?",
+                (name, head, self.id),  # head is None when no head is selected -> NULL
+            )
             self.model.select()
             QMessageBox.information(self, "Success", "Department updated successfully!")
             self.close()

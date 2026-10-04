@@ -1,6 +1,8 @@
 from PyQt5.QtSql import QSqlDatabase, QSqlQuery
 from PyQt5.QtWidgets import QMessageBox
 
+from security import hash_password, is_hashed, verify_password
+
 
 class DatabaseConnect:
 
@@ -32,11 +34,49 @@ class DatabaseConnect:
         return True
 
     def _exec(self, sql: str):
+        """Run static SQL (no user input). Use query() when values are involved."""
         query = QSqlQuery(self.db)
         if not query.exec_(sql):
             print("SQL error:", query.lastError().text())
             print(sql)
         return query
+
+    def query(self, sql: str, params=()):
+        """Run a parameterized query: values are bound to '?' placeholders."""
+        query = QSqlQuery(self.db)
+        if not query.prepare(sql):
+            print("SQL prepare error:", query.lastError().text())
+            print(sql)
+            return query
+        for value in params:
+            query.addBindValue(value)
+        if not query.exec_():
+            print("SQL error:", query.lastError().text())
+            print(sql)
+        return query
+
+    def run(self, sql: str, params=()) -> bool:
+        """Run a parameterized statement and report whether it succeeded."""
+        return not self.query(sql, params).lastError().isValid()
+
+    def authenticate(self, username: str, password: str, role: str):
+        """Return the User_Id for valid credentials and role, else None.
+
+        Legacy plain-text passwords are re-hashed after a successful login.
+        """
+        q = self.query(
+            "SELECT User_Id, Password FROM USERS WHERE Username = ? AND Role = ?",
+            (username, role),
+        )
+        if not q.next():
+            return None
+        user_id, stored = q.value(0), q.value(1)
+        if not verify_password(password, stored):
+            return None
+        if not is_hashed(stored):
+            self.query("UPDATE USERS SET Password = ? WHERE User_Id = ?",
+                       (hash_password(password), user_id))
+        return user_id
 
     def create_default_admin(self):
         query = QSqlQuery(self.db)
@@ -44,10 +84,10 @@ class DatabaseConnect:
         if query.next():
             return
 
-        query.exec_("""
-            INSERT INTO USERS (Username, Password, Role)
-            VALUES ('admin', '1234', 'Admin')
-        """)
+        self.query(
+            "INSERT INTO USERS (Username, Password, Role) VALUES (?, ?, ?)",
+            ("admin", hash_password("1234"), "Admin"),
+        )
         print("Default admin created")
 
     def _create_tables(self):

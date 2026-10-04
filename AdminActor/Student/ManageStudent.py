@@ -110,8 +110,7 @@ class ManageStu(QWidget):
         )
 
         if confirm == QMessageBox.Yes:
-            query = QSqlQuery()
-            ok = query.exec_(f"DELETE FROM STUDENTS WHERE Student_Id = {record_id}")
+            ok = self.dp.run("DELETE FROM STUDENTS WHERE Student_Id = ?", (record_id,))
 
             if not ok:
                 QMessageBox.warning(

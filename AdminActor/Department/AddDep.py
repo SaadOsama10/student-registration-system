@@ -47,18 +47,10 @@ class AddDep(QDialog):
               name = self.Nametxt.text()
               hid = self.head_combo.currentData()
               
-              if hid is None:
-                    hid = "NULL"      # SQL null (no quotes)
-              
-              
-
-
-              sql = f"""
-              INSERT INTO DEPARTMENTS (Department_Name , Head_Instructor_Id)
-              VALUES ('{name}', {hid})
-              """
-
-              self.dp._exec(sql)
+              self.dp.query(
+                  "INSERT INTO DEPARTMENTS (Department_Name, Head_Instructor_Id) VALUES (?, ?)",
+                  (name, hid),  # hid is None when no head is selected -> NULL
+              )
 
               self.model.select() 
 

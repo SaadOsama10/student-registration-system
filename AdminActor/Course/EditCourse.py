@@ -43,8 +43,10 @@ class EditCourses(QDialog):
         self.load_course_data()
 
     def load_course_data(self):
-        sql = f"SELECT Course_Code, Course_Name, Course_Credits, Course_Type FROM COURSES WHERE Course_Id = {self.id}"
-        query = self.dp._exec(sql)
+        query = self.dp.query(
+            "SELECT Course_Code, Course_Name, Course_Credits, Course_Type FROM COURSES WHERE Course_Id = ?",
+            (self.id,),
+        )
 
         if query.next():
             self.Instxt.setText(query.value(0))
@@ -66,16 +68,11 @@ class EditCourses(QDialog):
             return
 
         try:
-            sql = f"""
-            UPDATE COURSES SET 
-                Course_Code = '{code}', 
-                Course_Name = '{name}', 
-                Course_Credits = '{credit}',
-                Course_Type = '{ctype}'
-            WHERE Course_Id = {self.id};
-            """
-
-            self.dp._exec(sql)
+            self.dp.query(
+                "UPDATE COURSES SET Course_Code = ?, Course_Name = ?, Course_Credits = ?, Course_Type = ? "
+                "WHERE Course_Id = ?",
+                (code, name, credit, ctype, self.id),
+            )
             self.model.select()
             QMessageBox.information(self, "Success", "Course edited successfully!")
             self.close()

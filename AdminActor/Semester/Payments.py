@@ -155,7 +155,9 @@ class ManagePay(QWidget):
 
         if confirm == QMessageBox.Yes:
             q = QSqlQuery(self.db)
-            if not q.exec_(f"DELETE FROM PAYMENTS WHERE Payment_Id = {pid}"):
+            q.prepare("DELETE FROM PAYMENTS WHERE Payment_Id = ?")
+            q.addBindValue(pid)
+            if not q.exec_():
                 QMessageBox.warning(self, "Error", q.lastError().text())
             else:
                 self.model.select()
@@ -166,10 +168,9 @@ class ManagePay(QWidget):
         self.id = self.model.index(self.SelectedRow, 0).data()
 
         q = QSqlQuery(self.db)
-        q.exec_(f"""
-            SELECT Status, Sem_Id, Student_Id, Pay_Date, Amount
-            FROM PAYMENTS WHERE Payment_Id = {self.id}
-        """)
+        q.prepare("SELECT Status, Sem_Id, Student_Id, Pay_Date, Amount FROM PAYMENTS WHERE Payment_Id = ?")
+        q.addBindValue(self.id)
+        q.exec_()
 
         if q.next():
             self.combo_sta.setCurrentText(q.value(0))

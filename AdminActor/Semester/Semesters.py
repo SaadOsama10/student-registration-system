@@ -180,12 +180,10 @@ class ManageSem(QWidget):
 
 
           
-            sql = f"""
-            INSERT INTO SEMESTERS (Year, Term, Start_Date, End_Date)
-            VALUES ('{year}', '{term}', '{start}', '{end}')
-            """
-
-            self.dp._exec(sql)
+            self.dp.query(
+                "INSERT INTO SEMESTERS (Year, Term, Start_Date, End_Date) VALUES (?, ?, ?, ?)",
+                (year, term, start, end),
+            )
             self.model.select()  # Refresh table
             QMessageBox.information(self, "Success", " registered successfully!")
             self.clear_form()
@@ -205,8 +203,7 @@ class ManageSem(QWidget):
         )
 
         if confirm == QMessageBox.Yes:
-            query = QSqlQuery()
-            ok = query.exec_(f"DELETE FROM SEMESTERS WHERE Sem_Id = {record_id}")
+            ok = self.dp.run("DELETE FROM SEMESTERS WHERE Sem_Id = ?", (record_id,))
 
             if not ok:
                 QMessageBox.warning(
@@ -240,8 +237,10 @@ class ManageSem(QWidget):
             return 
         
         self.id = self.model.index(self.SelectedRow, 0).data()
-        sql = f"SELECT Year, Term, Start_Date, End_Date FROM SEMESTERS WHERE Sem_Id = {self.id}"
-        query = self.dp._exec(sql)
+        query = self.dp.query(
+            "SELECT Year, Term, Start_Date, End_Date FROM SEMESTERS WHERE Sem_Id = ?",
+            (self.id,),
+        )
         
         if query.next():
             self.txt_y.setText(str(query.value(0)))
@@ -270,16 +269,10 @@ class ManageSem(QWidget):
             return
         
 
-        sql = f"""
-            UPDATE SEMESTERS 
-            SET Year = '{year}', 
-                Term = '{term}', 
-                Start_Date = '{start}', 
-                End_Date = '{end}'   
-            WHERE Sem_Id = {self.id}
-            """
-
-        self.dp._exec(sql)
+        self.dp.query(
+            "UPDATE SEMESTERS SET Year = ?, Term = ?, Start_Date = ?, End_Date = ? WHERE Sem_Id = ?",
+            (year, term, start, end, self.id),
+        )
     
         self.model.select()  
         QMessageBox.information(self, "Success", "updated successfully!")

@@ -49,12 +49,11 @@ class AddCourses(QDialog):
             credit = self.Cdttxt.text()
             ctype = self.txt_t.currentText()
 
-            sql = f"""
-            INSERT INTO COURSES (Course_Code, Course_Name, Course_Credits, Course_Type)
-            VALUES ('{code}', '{name}', '{credit}', '{ctype}')
-            """
-
-            self.dp._exec(sql)
+            self.dp.query(
+                "INSERT INTO COURSES (Course_Code, Course_Name, Course_Credits, Course_Type) "
+                "VALUES (?, ?, ?, ?)",
+                (code, name, credit, ctype),
+            )
             self.model.select()
             QMessageBox.information(self, "Success", "New Course registered successfully!")
             self.close()

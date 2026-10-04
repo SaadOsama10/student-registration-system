@@ -176,12 +176,10 @@ class ManageClass(QWidget):
 
             
             # Insert new classroom
-            sql = f"""
-            INSERT INTO CLASSROOMS (Building, Room_Number, Capacity, Type)
-            VALUES ('{bluding}', '{room}', '{cap}', '{rtype}')
-            """
-
-            self.dp._exec(sql)
+            self.dp.query(
+                "INSERT INTO CLASSROOMS (Building, Room_Number, Capacity, Type) VALUES (?, ?, ?, ?)",
+                (bluding, room, cap, rtype),
+            )
             self.model.select()  # Refresh table
             QMessageBox.information(self, "Success", "Classroom registered successfully!")
             self.clear_form()
@@ -201,8 +199,7 @@ class ManageClass(QWidget):
         )
 
         if confirm == QMessageBox.Yes:
-            query = QSqlQuery()
-            ok = query.exec_(f"DELETE FROM CLASSROOMS WHERE Room_Id = {record_id}")
+            ok = self.dp.run("DELETE FROM CLASSROOMS WHERE Room_Id = ?", (record_id,))
 
             if not ok:
                 QMessageBox.warning(
@@ -238,8 +235,10 @@ class ManageClass(QWidget):
         
         self.id = self.model.index(self.SelectedRow, 0).data()
         
-        sql = f"SELECT Building, Room_Number, Capacity, Type FROM CLASSROOMS WHERE Room_Id = {self.id}"
-        query = self.dp._exec(sql)
+        query = self.dp.query(
+            "SELECT Building, Room_Number, Capacity, Type FROM CLASSROOMS WHERE Room_Id = ?",
+            (self.id,),
+        )
         if query.next():
             self.txt_bul.setText(query.value(0))
             self.txt_r.setText(query.value(1))
@@ -263,16 +262,10 @@ class ManageClass(QWidget):
             return
         
 
-        sql = f"""
-            UPDATE CLASSROOMS 
-            SET Building = '{bluding}', 
-                Room_Number = '{room}', 
-                Capacity = '{cap}', 
-                Type = '{rtype}'   
-            WHERE Room_Id = {self.id}
-            """
-
-        self.dp._exec(sql)
+        self.dp.query(
+            "UPDATE CLASSROOMS SET Building = ?, Room_Number = ?, Capacity = ?, Type = ? WHERE Room_Id = ?",
+            (bluding, room, cap, rtype, self.id),
+        )
     
         self.model.select()  
         QMessageBox.information(self, "Success", "Classroom updated successfully!")

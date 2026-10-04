@@ -79,13 +79,11 @@ class AddStu(QDialog):
             major_id = self.Majorcombo.currentData()
             advisor_id = self.Advisorcombo.currentData()
 
-            sql = f"""
-            INSERT INTO STUDENTS 
-            (Student_Name, Student_Number, Student_Email, TC_Kimlik, User_Id, Major_Id, Advisor_Id)
-            VALUES ('{name}', '{student_number}', '{email}', '{tc}', '{user_id}', '{major_id}', '{advisor_id}')
-            """
-
-            self.dp._exec(sql)
+            self.dp.query(
+                "INSERT INTO STUDENTS (Student_Name, Student_Number, Student_Email, TC_Kimlik, User_Id, Major_Id, Advisor_Id) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (name, student_number, email, tc, user_id, major_id, advisor_id),
+            )
             self.model.select()
             QMessageBox.information(self, "Success", "New Student registered successfully!")
             self.close()

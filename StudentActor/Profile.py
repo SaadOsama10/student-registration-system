@@ -144,27 +144,17 @@ class StudentProfileGUI(QWidget):
             QMessageBox.warning(self, "Warning", "Phone and Address are required")
             return
 
-        check = self.dp._exec(
-            f"SELECT 1 FROM PROFILE WHERE Student_Id = {self.stuID}"
-        )
+        check = self.dp.query("SELECT 1 FROM PROFILE WHERE Student_Id = ?", (self.stuID,))
         if check.next():
             QMessageBox.warning(self, "Warning", "Profile already exists!")
             return
 
         try:
-            self.dp._exec(f"""
-                INSERT INTO PROFILE
-                (Student_Id, Phone, Address, Birth_Date, Gender, Nationality, Photo_Path)
-                VALUES (
-                    {self.stuID},
-                    '{phone}',
-                    '{address}',
-                    '{birth}',
-                    '{gender}',
-                    '{nationality}',
-                    '{photo}'
-                )
-            """)
+            self.dp.query(
+                "INSERT INTO PROFILE (Student_Id, Phone, Address, Birth_Date, Gender, Nationality, Photo_Path) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (self.stuID, phone, address, birth, gender, nationality, photo),
+            )
             QMessageBox.information(self, "Success", "Profile added successfully!")
         except Exception as e:
             QMessageBox.critical(self, "DB Error", str(e))
@@ -178,20 +168,17 @@ class StudentProfileGUI(QWidget):
 
         if reply == QMessageBox.Yes:
             try:
-                self.dp._exec(
-                    f"DELETE FROM PROFILE WHERE Student_Id = {self.stuID}"
-                )
+                self.dp.query("DELETE FROM PROFILE WHERE Student_Id = ?", (self.stuID,))
                 QMessageBox.information(self, "Success", "Profile deleted")
                 self.clear_fields()
             except Exception as e:
                 QMessageBox.critical(self, "DB Error", str(e))
 
     def load_profile(self):
-        query = self.dp._exec(f"""
-            SELECT Phone, Address, Birth_Date, Gender, Nationality, Photo_Path
-            FROM PROFILE
-            WHERE Student_Id = {self.stuID}
-        """)
+        query = self.dp.query(
+            "SELECT Phone, Address, Birth_Date, Gender, Nationality, Photo_Path FROM PROFILE WHERE Student_Id = ?",
+            (self.stuID,),
+        )
 
         if query.next():
             self.input_phone.setText(str(query.value(0)))
